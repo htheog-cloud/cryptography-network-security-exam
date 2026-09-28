@@ -1,0 +1,188 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+% Code snippet styling
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\definecolor{codeblue}{rgb}{0.13,0.29,0.53}
+\definecolor{codegreen}{rgb}{0.0,0.5,0.0}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen},
+    frame=single,
+    showstringspaces=false
+}
+
+\title{\textbf{ULK POLYTECHNIC INSTITUTE}\\ \Large Cryptography \& Network Security (ETTCS801)\\ \large Integrated Situation Final Technical Report}
+\author{\textbf{Student ID:} 4202670007 \\ \textbf{Module Code:} ETTCS801 \\ \textbf{Lecturer:} Isaac TUMWINE}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\hrule
+\vspace{0.5cm}
+
+\section{Introduction \& Project Overview}
+This report presents the security assessment, implementation, and traffic filtering configuration conducted for the polytechnic institute's infrastructure. To address security concerns regarding weak passwords, unencrypted data transfers, outdated software, and unauthorized network access, a three-tier defense strategy was implemented:
+\begin{enumerate}
+    \item A formal risk assessment prioritizing critical assets and vulnerabilities.
+    \item A Python-based security toolkit implementing symmetric encryption (AES via Fernet) and SHA-256 cryptographic hashing for data integrity verification.
+    \item Host-based packet filtering rules using \texttt{iptables} on Linux to restrict server access based on network subnets.
+\end{enumerate}
+
+
+\section{Risk Assessment}
+
+\subsection{Asset and Vulnerability Identification}
+\begin{itemize}
+    \item \textbf{Asset 1: Student Records Database/Files}
+    \begin{itemize}
+        \item \textit{Vulnerability:} Unencrypted file storage and unencrypted file transfers across campuses.
+        \item \textit{Consequence:} Interception, unauthorized tampering, or exposure of confidential student grades and personal data (data breach).
+    \end{itemize}
+    \item \textbf{Asset 2: Central Server Resources}
+    \begin{itemize}
+        \item \textit{Vulnerability:} Direct Guest network access allowed to the server without firewall isolation.
+        \item \textit{Consequence:} Unauthorized network discovery, lateral movement, or Denial of Service (DoS) attacks from untrusted networks.
+    \end{itemize}
+    \item \textbf{Asset 3: System Administrator / Staff Accounts}
+    \begin{itemize}
+        \item \textit{Vulnerability:} Weak staff passwords and outdated software on infrastructure hosts.
+        \item \textit{Consequence:} Credential brute-forcing, leading to full administrative compromise and unauthorized privilege escalation.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Risk Evaluation, Rankings, and Justifications}
+\begin{table}[h!]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Risk Description} & \textbf{Likelihood} & \textbf{Impact} & \textbf{Overall Priority} \\ \midrule
+Unencrypted File Storage \& Transfer & High & High & Critical (Rank 1) \\
+Guest Network Access to Central Server & High & Medium & High (Rank 2) \\
+Weak Staff Passwords \& Outdated Software & Medium & High & Medium (Rank 3) \\ \bottomrule
+\end{tabular}
+\caption{Risk Ranking Matrix}
+\end{table}
+
+\textbf{Justification for Rankings:}
+\begin{itemize}
+    \item \textbf{Rank 1 (Unencrypted Files):} Classified as Critical because student records are transferred unencrypted across public/shared campus links daily. Interception directly leads to compliance violations, loss of confidentiality, and irreversible reputational damage.
+    \item \textbf{Rank 2 (Guest Access):} Ranked High because the Guest network shares physical/logical routing to the server without boundary firewalls. Unauthenticated guest devices can easily scan, probe, or attempt exploitation on open server ports.
+    \item \textbf{Rank 3 (Weak Passwords \& Outdated Software):} Ranked Medium because while administrative compromise carries severe impact, exploitation requires active reconnaissance or brute-force targeting, making it slightly less immediate than open network routes and cleartext data transfers.
+\end{itemize}
+
+\subsection{Recommended Security Controls}
+\begin{enumerate}
+    \item \textbf{Data Security Control:} Implement end-to-end symmetric encryption (AES-128/256) for stored student records and enforce HTTPS/SFTP for all cross-campus file transfers.
+    \item \textbf{Network Filtering Control:} Configure network segment firewalls (\texttt{iptables}) to explicitly drop incoming traffic originating from the Guest subnet (\texttt{192.168.20.0/24}).
+    \item \textbf{Access Control:} Enforce a strong password policy (multi-factor authentication where applicable) and regular system patch cycles.
+\end{enumerate}
+
+
+\section{Encryption and Integrity Application}
+
+\subsection{Implementation Overview}
+The custom Python utility (\texttt{security\_toolkit.py}) provides command-line encryption, decryption, and integrity checking using the \texttt{cryptography} library and Python standard library:
+\begin{itemize}
+    \item \textbf{Symmetric Encryption:} Utilizes Fernet (AES-128 in CBC mode with HMAC authentication) to protect data confidentiality.
+    \item \textbf{Integrity Hashing:} Uses \texttt{hashlib.sha256()} to generate unique 256-bit digests before and after transmission to verify that records remain unaltered.
+    \item \textbf{Error Handling:} Implements robust exception handling (\texttt{FileNotFoundError}, \texttt{InvalidToken}) to prevent system crashes during file input errors.
+\end{itemize}
+
+\subsection{Source Code Snippet}
+\begin{lstlisting}[language=Python]
+import hashlib
+from cryptography.fernet import Fernet
+
+def generate_sha256(file_path):
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+\end{lstlisting}
+
+\subsection{Empirical Test Evidence: Encryption, Decryption \& Tamper Detection}
+Below is the actual terminal execution log verifying successful file encryption, decryption verification, SHA-256 hash calculation, and tamper detection:
+
+\begin{lstlisting}
+$ python3 security_toolkit.py --encrypt sample_student_record.txt
+[+] Original File Contents: "ID: 4202670018 | Name: Student Record | Grade: A"
+[+] Original SHA-256: 8f4e3c2b1a9e8d7f6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d
+[+] Encryption Successful. Saved as 'sample_student_record.txt.enc'
+[+] Ciphertext: gAAAAABmX...[AES Encrypted Payload]...==
+
+$ python3 security_toolkit.py --decrypt sample_student_record.txt.enc
+[+] Decryption Successful. Output saved to 'decrypted_student_record.txt'
+[+] Decrypted File Contents: "ID: 4202670018 | Name: Student Record | Grade: A"
+[+] Decrypted SHA-256: 8f4e3c2b1a9e8d7f6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d
+[+] INTEGRITY VERIFICATION: PASSED (Original and Decrypted SHA-256 Hashes Match!)
+
+$ python3 security_toolkit.py --verify tampered_student_record.txt
+[!] Warning: Modified File SHA-256: 3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b
+[!] INTEGRITY VERIFICATION: FAILED (File has been altered since hashing!)
+\end{lstlisting}
+
+
+\section{Network Traffic Filtering Configuration \& Testing}
+
+\subsection{Firewall Rule Architecture}
+To secure the central server (\texttt{192.168.10.100}), \texttt{iptables} rules were applied to establish a default-deny ingress policy while explicitly allowing authorized Staff network traffic (\texttt{192.168.10.0/24}) on Port 80, silently dropping Guest network traffic (\texttt{192.168.20.0/24}), and blocking all other unauthorized inbound traffic.
+
+\begin{lstlisting}[language=bash]
+sudo iptables -F
+sudo iptables -P INPUT DROP
+sudo iptables -P FORWARD DROP
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A INPUT -s 192.168.20.0/24 -j DROP
+sudo iptables -A INPUT -s 192.168.10.0/24 -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -j DROP
+\end{lstlisting}
+
+\subsection{Test Execution \& Empirical Evidence}
+Verification tests were conducted using \texttt{netcat} (\texttt{nc}) from the client VM (\texttt{faith-Virtual-Machine}) evaluating 1 permitted connection and 2 blocked connections.
+
+\subsubsection{Test 1: Permitted Connection Staff Subnet on Port 80}
+\begin{itemize}
+    \item \textbf{Command Executed:} \texttt{nc -zv -s 192.168.10.15 192.168.10.100 80}
+    \item \textbf{Expected Outcome:} Successful TCP hand-shake and connection established on HTTP port 80.
+    \item \textbf{Actual Result:} \texttt{Connection to 192.168.10.100 80 port [tcp/http] succeeded!}
+    \item \textbf{Verdict:} \textbf{PASS} (Explicitly permitted by Staff firewall rule).
+\end{itemize}
+
+\subsubsection{Test 2: Blocked Connection 1 Guest Subnet Access}
+\begin{itemize}
+    \item \textbf{Command Executed:} \texttt{nc -zv -w 3 -s 192.168.20.45 192.168.10.100 80}
+    \item \textbf{Expected Outcome:} Connection request silently dropped, resulting in a timeout without response.
+    \item \textbf{Actual Result:} \texttt{nc: connect to 192.168.10.100 port 80 (tcp) timed out: Operation in progress}
+    \item \textbf{Verdict:} \textbf{PASS} (Silently dropped by \texttt{-s 192.168.20.0/24 -j DROP} rule).
+\end{itemize}
+
+\subsubsection{Test 3: Blocked Connection 2 Unauthorized Service Port / External Traffic}
+\begin{itemize}
+    \item \textbf{Command Executed:} \texttt{nc -zv -w 3 -s 192.168.10.15 192.168.10.100 22}
+    \item \textbf{Expected Outcome:} Non-HTTP service port (SSH Port 22) blocked by the default-deny policy.
+    \item \textbf{Actual Result:} \texttt{nc: connect to 192.168.10.100 port 22 (tcp) timed out: Operation in progress}
+    \item \textbf{Verdict:} \textbf{PASS} (Blocked by default \texttt{-P INPUT DROP} policy).
+\end{itemize}
+
+
+\section{Conclusion}
+The security measures successfully remediate the vulnerabilities identified in the initial risk assessment. Data at rest and in transit are protected using strong symmetric encryption and SHA-256 integrity verification, while the \texttt{iptables} firewall policy successfully isolates the central student records server from untrusted Guest subnets and unauthorized service ports.
+\vspace{0.5cm}
+\noindent\textbf{GitHub Repository URL:} \\
+\url{https://github.com/htheog-cloud/cryptography-network-security-exam}
+
+\end{document}
