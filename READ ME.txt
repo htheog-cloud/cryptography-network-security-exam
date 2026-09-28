@@ -1,0 +1,95 @@
+# Cryptography and Network Security Exam
+
+## Question 2: Encryption and Integrity Application
+
+This project contains a Python security application for protecting a sample student record file.
+
+### Requirements
+
+The application performs the following functions:
+
+1. Encrypts a supplied student record file.
+2. Saves the encrypted output.
+3. Decrypts the encrypted file.
+4. Verifies that the decrypted contents match the original file.
+5. Calculates a SHA-256 hash of the student record file.
+6. Detects whether the student record file has subsequently changed.
+7. Handles missing files and invalid inputs without crashing.
+
+## Installation
+
+### 1. Install Python
+
+Python 3 is required to run the application.
+
+### 2. Install the Cryptography Library
+
+Open Command Prompt and run:
+
+```text
+python -m pip install cryptography
+```
+
+## Project Structure
+
+```text
+cryptography-network-security-exam/
+│
+├── README.md
+├── risk_assessment.md
+│
+└── encryption_tool/
+    ├── encryption_tool.py
+    ├── student_records.txt
+    ├── student_records.txt.encrypted
+    ├── student_records.txt.decrypted
+    └── student_records.txt.sha256
+```
+
+## Execution Instructions
+
+1. Open Command Prompt.
+2. Navigate to the `encryption_tool` folder.
+3. Run the following command:
+
+```text
+python encryption_tool.py student_records.txt
+```
+
+The program will encrypt the student record, decrypt it, verify the decrypted contents, calculate the SHA-256 hash, and perform an integrity check.
+
+## Integrity Testing
+
+On the first execution, the application stores the original SHA-256 hash.
+
+If the student record file is modified afterwards, run the program again. The application compares the current SHA-256 hash with the stored original hash and reports whether the file has changed.
+
+For example:
+
+```text
+Integrity check: PASSED - File has not changed.
+```
+
+If the file has been modified:
+
+```text
+Integrity check: FAILED - File has been changed.
+```
+
+## Error Handling
+
+The application handles common errors such as:
+
+* Missing student record files
+* Missing or invalid encryption keys
+* Invalid encrypted files
+* Invalid command-line input
+* Permission errors
+
+The program displays an error message instead of crashing.
+
+## Encryption Key Security
+
+The encryption key is stored **outside the GitHub repository**.
+
+The key is not uploaded or committed to GitHub.
